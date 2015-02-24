@@ -14,6 +14,7 @@ main = do
     [l, r] <- map ((\n -> n - 1) . read) . words <$> getLine
     append trees i l r
   putStrLn "appended"
+  mapM_ printTree trees
   printTreesLine root
   t <- readLn
   replicateM_ t $ do
@@ -22,13 +23,15 @@ main = do
     printTreesLine root
 
 newTrees :: Int -> IO [BinTree]
-newTrees n = do
-  l <- newMVar Nil
-  r <- newMVar Nil
-  return $ map (\i -> BinTree i l r) [1..n]
+newTrees n =
+  forM [1 .. n] $ \i -> do
+    l <- newMVar Nil
+    r <- newMVar Nil
+    return $ BinTree i l r
 
 append :: [BinTree] -> Int -> Int -> Int -> IO ()
-append trees it il ir = trace ("append " ++ (show it) ++ (show il) ++ (show ir)) $ do
+append trees it il ir =
+  trace ("append " ++ (show it) ++ " " ++ (show il) ++ " " ++ (show ir)) $ do
   let t = trees !! it
   case t of
     Nil -> error "Nil tree"
@@ -75,9 +78,23 @@ showTrees root = do
   return $ intercalate " " is
   where
     go :: [Int] -> BinTree -> IO [Int]
-    go acc (BinTree i ml mr) = do
+    go acc (BinTree i ml mr) = trace ("BinTree " ++ (show i)) $ do
       l <- readMVar ml
       r <- readMVar mr
       racc <- go acc r
       go (i:racc) l
-    go acc Nil = return acc
+    go acc Nil = trace "Nil" return acc
+
+printTree :: BinTree -> IO ()
+printTree Nil = putStr "Nil"
+printTree (BinTree i ml mr) = do
+  putStr $ "BT " ++ (show i) ++ " "
+  l <- readMVar ml
+  case l of
+    Nil -> putStr "Nil "
+    (BinTree il _ _) -> putStr $ (show il) ++ " "
+  r <- readMVar mr
+  case r of
+    Nil -> putStr "Nil "
+    (BinTree ir _ _) -> putStr $ (show ir) ++ " "
+  
