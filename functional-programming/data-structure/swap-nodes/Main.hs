@@ -2,7 +2,6 @@ import Control.Concurrent.MVar
 import Control.Monad
 import Control.Applicative
 import Data.List
-import Debug.Trace
 
 data BinTree = Nil | BinTree Int (MVar BinTree) (MVar BinTree)
 
@@ -10,16 +9,14 @@ main = do
   n <- readLn
   trees <- newTrees n
   let root = head trees
-  forM_ [0..n-1] $ \i -> do
+  forM_ [0 .. n - 1] $ \i -> do
     [l, r] <- map ((\n -> n - 1) . read) . words <$> getLine
     append trees i l r
-  putStrLn "appended"
-  mapM_ printTree trees
-  printTreesLine root
+  d <- depth root
   t <- readLn
   replicateM_ t $ do
-    d <- readLn
-    swapAt root d
+    k <- readLn
+    mapM_ (swapAt root) [k, 2 * k .. d]
     printTreesLine root
 
 newTrees :: Int -> IO [BinTree]
@@ -30,8 +27,7 @@ newTrees n =
     return $ BinTree i l r
 
 append :: [BinTree] -> Int -> Int -> Int -> IO ()
-append trees it il ir =
-  trace ("append " ++ (show it) ++ " " ++ (show il) ++ " " ++ (show ir)) $ do
+append trees it il ir = do
   let t = trees !! it
   case t of
     Nil -> error "Nil tree"
@@ -56,6 +52,15 @@ swap (BinTree i ml mr) = do
   putMVar mr l
   return ()
 
+depth :: BinTree -> IO Int
+depth Nil = return 0
+depth (BinTree i ml mr) = do
+  l <- readMVar ml
+  r <- readMVar mr
+  dl <- depth l
+  dr <- depth r
+  return $ 1 + (max dl dr)
+
 atDepth :: BinTree -> Int -> IO [BinTree]
 atDepth root d =
   go [] root d
@@ -78,23 +83,9 @@ showTrees root = do
   return $ intercalate " " is
   where
     go :: [Int] -> BinTree -> IO [Int]
-    go acc (BinTree i ml mr) = trace ("BinTree " ++ (show i)) $ do
+    go acc (BinTree i ml mr) = do
       l <- readMVar ml
       r <- readMVar mr
       racc <- go acc r
       go (i:racc) l
-    go acc Nil = trace "Nil" return acc
-
-printTree :: BinTree -> IO ()
-printTree Nil = putStr "Nil"
-printTree (BinTree i ml mr) = do
-  putStr $ "BT " ++ (show i) ++ " "
-  l <- readMVar ml
-  case l of
-    Nil -> putStr "Nil "
-    (BinTree il _ _) -> putStr $ (show il) ++ " "
-  r <- readMVar mr
-  case r of
-    Nil -> putStr "Nil "
-    (BinTree ir _ _) -> putStr $ (show ir) ++ " "
-  
+    go acc Nil = return acc
